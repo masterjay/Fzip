@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="618" height="34">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Metadata>
+		[Event(name="fileName", type="events.tiSWCFileNameEvents")]
+		[Event(name="fileName2", type="events.tiSWCFileNameEvents")]
+	</fx:Metadata>
+<fx:Script>
+	<![CDATA[
+		import events.tiSWCFileNameEvents;
+		
+		import flash.events.Event;
+		import flash.filesystem.File;
+		
+		import mx.controls.Alert;
+		
+		private var m_nIndex:Number=0
+		
+		public var ar:Array=new Array();
+		public var file:File=new File();; 
+		public var file2:File=new File();
+		private var flag:int=0
+			
+		public function doFunction():void
+		{
+			//var m_fileName:Array=["D:\\assets\test.txt"]
+			//var m_fileName:Array=["D:\\test2.txt"]
+			//var m_fileName:Array=["D:\\footer.swc"]
+			var m_fileName:Array=["D://assets"]
+			
+			if(m_fileName.length>m_nIndex)
+			{
+				openFfile(m_fileName[m_nIndex]);
+			}
+		}
+		
+		public function openFfile(name:String):void
+		{
+			var file:File =new File(name);
+			var stream:FileStream = new FileStream()
+			var bytes:ByteArray = new ByteArray();
+			stream.open(file, FileMode.READ);
+			//stream.addEventListener(Event.COMPLETE,completeHandler)
+			ar.push(stream.readUTFBytes(stream.bytesAvailable));
+			//stream.readBytes(bytes, 0, stream.readObject());
+			//ar.push(stream)
+		//	ar.push(bytes)
+			stream.close();
+			//trace(bytes)
+			//t.text+=ar[m_nIndex]
+			//t.text+=bytes[0]
+			m_nIndex++
+				//doFunction();
+		}
+	
+		private  function loadImg(): void 
+		{  
+			   var fileFliter:FileFilter=new FileFilter("swc","*.swc")
+			file.browseForOpen("please select a swc file",[fileFliter]);   //激发Event.SELECT事件   
+			file.addEventListener(Event.SELECT,directorySelected)
+		}  
+		
+			  
+		private function directorySelected(event:Event):void 
+		{
+			file = event.target as File;
+			//trace(file.nativePath)
+			input.text=file.name
+				trace(file.nativePath)
+				trace(file.nativePath)
+				this.dispatchEvent(new tiSWCFileNameEvents("fileName",file.name,file.nativePath))
+		}
+		
+		private function loadfile():void
+		{
+			var fileFliter:FileFilter=new FileFilter("swc","*.swc")
+			file2.browseForOpen("please select a swc file",[fileFliter]);   //激发Event.SELECT事件   
+			file2.addEventListener(Event.SELECT,directorySelected2)
+		}
+		private function directorySelected2(event:Event):void
+		{
+			file2=event.target as File
+			input2.text=file2.name
+			this.dispatchEvent(new tiSWCFileNameEvents("fileName2",file2.name,file2.nativePath));		
+		}
+		
+		
+		
+		
+	]]>
+</fx:Script>
+	<s:Button id="ABtn" x="223" y="0" height="28" label="open file A" click="loadImg()"/>
+	<s:TextInput id="input" x="0" y="0" width="210" height="28"/>
+	<s:TextInput id="input2" x="313" y="0" width="210" height="27" />
+	<s:Button id="Bbtn" x="534" y="0" height="28" label="open file B" click="loadfile()"/>
+	
+</s:Group>

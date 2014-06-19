@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009"
+				xmlns:s="library://ns.adobe.com/flex/spark"
+				xmlns:mx="library://ns.adobe.com/flex/mx"
+				width="400" height="118" enabled="true" horizontalAlign="center"
+				verticalAlign="middle">
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+<fx:Script>
+	<![CDATA[
+
+		
+		
+	]]>
+</fx:Script>
+	<mx:ProgressBar id="progressBar" x="84" y="23" width="230" height="32" label="waiting"
+					fontSize="12" fontWeight="normal" indeterminate="true" labelPlacement="center"/>
+</mx:TitleWindow>

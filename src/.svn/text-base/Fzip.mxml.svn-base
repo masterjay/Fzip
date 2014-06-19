@@ -1,0 +1,607 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009"
+					   xmlns:s="library://ns.adobe.com/flex/spark"
+					   xmlns:mx="library://ns.adobe.com/flex/mx"
+					   xmlns:local="*"
+					   xmlns:component="component.*"
+					   width="1377" height="800" minWidth="10" minHeight="10"
+					   windowResize="windowedapplication1_windowResizeHandler(event)" creationComplete="application1_creationCompleteHandler(event)">
+	
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+		<!--<fx:XML id="config" source="config.xml"/>
+		<fx:XML id="newconfig" source="new.xml"/>-->
+		<local:zipTest id="zip" OK="this.showData(event.id,event.fileName,event.fileNativePath)"/>
+		<local:readConfigFile id="read" />
+		<local:tiCompare id="com" compareAll="com_OKHandler(event)" compareConfig="com_compareConfigHandler(event)" compareAB="com_compareABHandler(event)"/>
+		
+	</fx:Declarations>
+	
+	<fx:Script>
+		<![CDATA[
+			import component.waitingWindow;
+			
+			import events.tiCompareCompleteEvents;
+			import events.tiCompleteEvents;
+			import events.tiSWCFileNameEvents;
+			
+			import flashx.textLayout.events.SelectionEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Text;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.FileEvent;
+			import mx.events.FlexEvent;
+			import mx.events.FlexNativeWindowBoundsEvent;
+			import mx.events.ListEvent;
+			import mx.events.Request;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import spark.components.Window;
+			import spark.components.mediaClasses.VolumeBar;
+			
+			
+			[Bindable]
+			private var res:Array=new Array();//某SWC檔的所有instance name ,flag=1
+			private var arr:Array=new Array();//SWC檔內的component instance name, flag=2  
+			private var arr2:Array=new Array();//欲比較陣列的instance name,flag=3
+			private var arr3:Array=new Array();//存取開啟第二SWC檔資料
+			private var comConfig:Array=new Array();//存取比較所有config SWC 個別資料陣列A
+			private var comConfig2:Array=new Array();//存取比較所有config SWC 個別資料陣列B
+			private var selectName:Array=new Array();//存取欲解壓所的檔案名稱 目前僅用一筆
+			private var count:int=0//每比對一次,count +1 繼續比下一筆資料
+			private var countA:int=0//每比對一輪,countA +1 countB歸0  
+			private var countB:int=1;//每比對一次,countB +1 繼續比下一筆資料 初始值1	(自己不比)
+			private var conflictArr:ArrayCollection=new ArrayCollection();//包含conflict在內所有資料
+			private var waitTi:waitingWindow;
+			private var fileNameA:String;//目前fileA NAME
+			private var fileNameB:String;//目前fileB NAME
+			//private var fileNameAll:String;//目前fileAll列表中的某一SWC檔
+			private var fileNativePathA:String;//目前fileA NATIVEPATH
+			private var fileNativePathB:String;//目前fileB NATIVEPATH
+		//	private var fileNativePathAll:String;//目前fileAll列表中的某一SWC檔 NATIVEPATH
+			private var file:File;
+			private var xmlcount:int=0;
+			private var itemIndex:Array;
+			
+			
+			protected function application1_creationCompleteHandler(event:FlexEvent):void
+			{
+				this.read.searchConfigFile()
+				if(read.swcName.length==0)
+				{
+					this.comConfigBtn.enabled=false;
+				}
+					
+				dg.dataProvider=read.swcName;
+			
+			
+			}	
+			//catalog.xml檔
+			private function get _data():Array
+			{
+				return zip.data; 
+			}
+			
+			//走訪catalog.xml檔並將資料過濾出來  依需求存在不同陣列
+			private function showData(id:String,fileName:String,fileNativePath:String):void
+			{
+				
+				
+				for(var j:int=0;j<_data.length;j++)//data陣列裡共N筆資料
+				{
+					var xml:XML=new XML(this._data[j]);
+					var length:int=xml.children()[2].children()[0].children().length()//找尋XML文件instance name的數目
+					for(var i:int=0;i<length;i++)
+					{
+						var string:String=xml.children()[2].children()[0].children()[i].@name.toString();
+						if(string.indexOf("/")==-1)
+						{
+							if(id=="dg2")
+							{
+								res.push(string);//將過濾過的instance name加到res陣列中
+							}
+							else if(id=="dg3") 
+							{
+								arr2.push(string);//將過濾過的instance name加到arr2陣列中
+								
+							}
+							else if(id=="dg5")
+							{
+								arr3.push(string);
+							}
+							else if(id=="compare")
+							{
+								arr.push(string);//將過濾過的instance name加到arr列中
+							}
+							else if(id=="comConfig")
+							{
+								comConfig.push(string);
+							}
+							else if(id=="comConfig2")
+							{
+								comConfig2.push(string)
+							}
+						}
+					}
+				}
+				
+				if(id=="dg2")
+				{
+					dg2.dataProvider=this.res	
+				}
+				else if(id=="dg3")
+				{
+					this.fileNameA=fileName
+					this.fileNativePathA=fileNativePath	
+					dg3.dataProvider=this.arr2
+					this.comBtn.enabled=true;
+					this.openFile.Bbtn.enabled=true;
+					this.comConfigBtn.enabled=true;
+					if(this.openFile.input2.text!="")
+					{
+						this.comBtn2.enabled=true
+					}
+				}
+				else if(id=="dg5")
+				{
+					this.fileNameB=fileName
+					this.fileNativePathB=fileNativePath;	
+					dg5.dataProvider=this.arr3
+					this.openFile.ABtn.enabled=true;
+					this.comConfigBtn.enabled=true;
+					if(this.openFile.input.text!="" && this.openFile.input2.text!="")
+					{
+						this.comBtn2.enabled=true
+						this.comBtn.enabled=true;
+					}
+				}
+				else if(id=="compare")//全部作比較
+				{
+					this.com.doCompare(arr,arr2,fileName,fileNameA,fileNativePath,fileNativePathA,"compareAll");
+				}
+				else if(id=="comConfig")
+				{
+					selectName[0]=read.swcName[countB].nativePath;
+					this.zip.setswcName(selectName,"comConfig2",read.swcName[countB].name,read.swcName[countB].nativePath);
+				}
+				else if(id=="comConfig2")
+				{
+					//trace("comConfig  "+comConfig)
+					trace(countA+" countA")
+					trace(countB+" countB")
+					this.com.doCompare(comConfig,comConfig2,read.swcName[countA].name,read.swcName[countB].name,read.swcName[countA].nativePath,read.swcName[countB].nativePath,"compareConfig");
+				}
+				
+			}
+			
+			
+			
+			
+			
+			//將選擇檔案的swc內的instance name 顯示在dg3上
+			protected function openFile_fileNameHandler(event:tiSWCFileNameEvents):void
+			{
+				this.arr2.length=0
+				selectName[0]=event.fileNativePath;
+				this.comBtn.enabled=false;
+				this.comBtn2.enabled=false;
+				this.openFile.Bbtn.enabled=false;
+				this.comConfigBtn.enabled=false;
+				this.dg4.dataProvider="";
+				this.dg6.dataProvider=""
+				this.dg7.dataProvider="";
+				this.dg8.dataProvider="";
+				zip.setswcName(selectName,"dg3",event.fileName,event.fileNativePath); 
+			} 
+			//開啟第二個SWC檔案 顯示在dg5上
+			protected function openFile_fileName2Handler(event:tiSWCFileNameEvents):void
+			{
+				this.arr3.length=0
+				selectName[0]=event.fileNativePath;
+				this.comBtn2.enabled=false;
+				this.comBtn.enabled=false;
+				this.openFile.ABtn.enabled=false;
+				this.comConfigBtn.enabled=false;
+				this.dg6.dataProvider="";
+				this.dg7.dataProvider="";
+				this.dg8.dataProvider="";
+				zip.setswcName(selectName,"dg5",event.fileName,event.fileNativePath); 
+			}
+			
+			//將選擇到的SWC內的instance name 顯示在dg2上
+			protected function dg_itemClickHandler(event:ListEvent):void
+			{
+				this.itemIndex=new Array();
+			    var deleteArray:Array=new Array()
+					deleteArray=dg.selectedItems
+				//trace(deleteArray[0].name)
+				//trace(deleteArray)
+				this.res.length=0
+				this.delBtn.enabled=true;
+				selectName[0]=event.currentTarget.selectedItem.nativePath
+				for(var i:int=0;i<deleteArray.length;i++)
+				{
+					for(var j:int=0;j<read.swcName.length;j++)
+					{
+						if(deleteArray[i].nativePath==read.swcName[j].nativePath)
+						{
+							this.itemIndex.push(j);
+						}
+						
+					}
+				}
+				trace(itemIndex)
+				this.zip.setswcName(selectName,"dg2",event.currentTarget.selectedItem.toString(),event.currentTarget.selectedItem.toString());
+				
+			}
+			
+			
+			
+			//開始進行A&ALL SWC檔比較
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				
+				this.count=0
+				this.com.conflictCollection.length=0	
+				//selectName[0]=this.read.ar[0]+read.swcName[0];
+				selectName[0]=this.read.swcName[0].nativePath
+				waitTi=PopUpManager.createPopUp(this,waitingWindow,true) as waitingWindow
+				PopUpManager.centerPopUp(waitTi);
+				this.zip.setswcName(selectName,"compare",read.swcName[0].name,read.swcName[0].nativePath)
+				
+			}
+			
+			
+			//ALL&A SWC檔比較直到結束
+			protected function com_OKHandler(event:tiCompareCompleteEvents):void
+			{
+				count+=event.count
+				this.arr.length=0	
+				if(count!=this.read.swcName.length)
+				{
+					
+					//trace(read.swcPath[count]+"  read.swcPath[count]")
+					selectName[0]=read.swcName[count].nativePath;
+					this.zip.setswcName(selectName,"compare",read.swcName[count].name,read.swcName[count].nativePath);
+					
+				}
+				else
+				{
+					
+					this.dg4.dataProvider=this.com.conflictCollection
+					PopUpManager.removePopUp(waitTi);
+					Alert.show("Compare finished");	
+				}
+				
+			}
+			
+			//將A SWC檔和B SWC檔作比較
+			protected function comBtn2_clickHandler(event:MouseEvent):void
+			{
+				this.com.A.length=0;
+				this.com.B.length=0;
+				this.com.conflictCollectionAB.length=0;
+				waitTi=PopUpManager.createPopUp(this,waitingWindow,true) as waitingWindow
+				PopUpManager.centerPopUp(waitTi);
+				this.com.doCompareAB(arr2,arr3);
+				
+				
+				
+			}
+			//將AB檔比對的結果顯示在DG6上
+			protected function com_compareABHandler(event:Event):void
+			{
+				this.dg6.dataProvider=this.com.conflictCollectionAB;
+				this.dg7.dataProvider=this.com.A;
+				this.dg8.dataProvider=this.com.B
+				PopUpManager.removePopUp(waitTi);
+				Alert.show("Compare finishedAB");
+			}
+			//比對所有config SWC檔資料
+			protected function comConfigBtn_clickHandler(event:MouseEvent):void
+			{
+				this.dg4.dataProvider="";
+				this.countA=0;
+				this.countB=1;
+				this.comConfig.length=0;
+				this.comConfig2.length=0;
+				
+				selectName[0]=read.swcName[countA].nativePath;
+				waitTi=PopUpManager.createPopUp(this,waitingWindow,true) as waitingWindow
+				PopUpManager.centerPopUp(waitTi);
+				this.zip.setswcName(selectName,"comConfig",read.swcName[countA].name,read.swcName[countA].nativePath);
+				
+				
+			}
+			//比對所有config SWC檔資料 下一輪 直到結束
+			protected function com_compareConfigHandler(event:tiCompareCompleteEvents):void
+			{
+				
+				countB++
+				if(countB!=this.read.swcName.length)//第一輪未結束
+				{
+					this.comConfig2.length=0;
+					//trace(read.swcPath[count]+"  read.swcPath[count]")
+					selectName[0]=read.swcName[countB].nativePath;
+					this.zip.setswcName(selectName,"comConfig2",read.swcName[countB].name,read.swcName[countB].nativePath);
+				}
+				else if(countB==this.read.swcName.length && this.countA!=this.read.swcName.length-1)//下一輪
+				{
+					this.comConfig.length=0;
+					this.comConfig2.length=0;
+					
+					this.countA++;
+					this.countB=countA+1	
+					if(countB==this.read.swcName.length && this.countA==this.read.swcName.length-1)//全部比過
+					{
+						this.dg4.dataProvider=this.com.conflictCollection
+						PopUpManager.removePopUp(waitTi);
+						Alert.show("Compare finished");	
+						this.opLogBtn.enabled=true;
+						return
+					}
+					
+					selectName[0]=read.swcName[countA].nativePath;
+					this.zip.setswcName(selectName,"comConfig",read.swcName[countA].name,read.swcName[countA].nativePath);
+				}
+			}				
+			
+			
+			
+			//增加SWC檔 可複數
+			protected function addBtn_clickHandler(event:MouseEvent):void
+			{
+				file=new File();    
+				var fileFliter:FileFilter=new FileFilter("swc","*.swc")
+				file.browseForOpenMultiple("please select swc files",[fileFliter]);   //激发Event.SELECT事件   
+				file.addEventListener(FileListEvent.SELECT_MULTIPLE,directorySelected)
+				
+			}
+			
+			private function directorySelected(event:FileListEvent):void
+			{
+				
+				var flag:Boolean;
+				
+				
+				for(var k:int=0;k<event.files.length;k++)
+				{
+					flag=true;
+					for(var j:int=0;j<read.swcName.length;j++)
+					{
+						
+						if(event.files[k].nativePath==read.swcName[j].nativePath)
+						{
+							flag=false;
+							Alert.show("File "+event.files[k].name+" already exists")
+							
+						}	
+					}
+					if(flag==true)	
+					{
+						this.read.swcName.push({name:event.files[k].name,nativePath:event.files[k].nativePath})		
+							//var data:XML=<data><name>{event.files[k].name}"</name><nativePath>"{event.files[k].nativePath}"</nativePath></data>
+						read.xmlNew.appendChild(<data id={event.files[k].nativePath}><name>{event.files[k].name}</name><nativePath>{event.files[k].nativePath}</nativePath></data>);
+						xmlcount++;
+						//newconfig=newconfig.insertChildAfter(newconfig.path[1],data);
+							//newconfig.appendChild(data);	
+						//this.newconfig.data[newconfig.length()].name=event.files[k].name;
+						//this.newconfig.data[newconfig.length()].nativePath=event.files[k].nativePath;
+					
+					}
+					
+				}
+				
+				this.dg.dataProvider=this.read.swcName
+				this.comConfigBtn.enabled=true;	
+				this.fileWrite()
+				
+			}
+			//刪除SWC檔
+			protected function delBtn_clickHandler(event:MouseEvent):void
+			{
+				var index:int=0;
+				this.itemIndex.sort();
+				trace(itemIndex)
+				for(var i:int=0;i<itemIndex.length;i++)
+				{
+					
+					var temp:int=itemIndex[i]
+					if(i>0)
+					{
+						temp=temp-1
+					}
+					
+					
+					
+						
+						this.read.swcName.splice(temp,1);
+						//Alert.show(read.swcName[temp].name+" has been delete.")
+					if(temp<read.configLength)
+					{
+						read.configLength=read.configLength-1;	
+					}
+					
+					index=temp-read.configLength
+					if(index!=-1)
+					{
+						delete read.xmlNew.data[index];
+					}
+				}
+				
+				
+				this.fileWrite()
+				this.dg2.dataProvider="";
+				this.dg.dataProvider=this.read.swcName;
+				this.delBtn.enabled=false;
+			//	trace(newconfig.data.(nativePath==selectName[0]))
+				//trace(index+"index")
+				
+				//trace(newconfig.data.(@id==selectName[0]).childIndex+"newconfig.data.(@id==selectName[0]).childIndex")
+				//trace(newconfig.data.childIndex()+"newconfig.data.childIndex()")
+				//trace(itemIndex+"itemIndex")
+			//	trace(read.configLength+"read.configLength")
+				
+					
+				
+			
+				
+			}
+			//output log
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				var myFileReference:FileReference = new FileReference();
+				//conflictCollection.push({nameA:fileNameA,nameB:fileNameB,data:ar[j]});  資料結構
+				var log:Text=new Text();
+				
+				for(var i:int=0;i<this.com.conflictCollection.length;i++)
+				{
+					var temp:String=this.com.conflictCollection[i].NativePathA+"    "+this.com.conflictCollection[i].NativePathB+"    "+this.com.conflictCollection[i].data
+					log.text+=temp+'\r\n'
+					
+				}
+				if(log==null)
+				{
+					return;
+				}
+				else
+				{
+					myFileReference.save(log.text,"log.txt");
+				}
+			}
+			
+			
+			private function fileWrite():void
+			{//create a directory
+				
+				
+				
+				//create the file
+				var myfile:File = File.documentsDirectory.resolvePath("new.xml")
+				//myfile.nativePath="C:/Program Files (x86)/Fzip/new.xml"
+				//myfile.nativePath="D:/new.xml"
+				//File.desktopDirectory.resolvePath("new.xml")
+				//myfile.nativePath="C:/Users/jay.liao53/Adobe Flash Builder 4.5/Fzip/src/new.xml"
+				//open a filestream object
+				var fs:FileStream = new FileStream();
+				
+				//open the file; you can use WRITE, UPDATE, or APPEND to write content, with different effect (read doc)
+				fs.open(myfile, FileMode.WRITE);
+				
+				//write the contents
+				fs.writeUTFBytes(read.xmlNew.toXMLString())
+				
+				//show the native path. sorry I didn't give better feedback in the app for debugging, but hey. it's free.
+				
+				fs.close();
+			}
+			
+			
+			
+			
+			
+			protected function windowedapplication1_windowResizeHandler(event:FlexNativeWindowBoundsEvent):void
+			{
+				var num:int=stage.height-150
+				this.vbox.height=num
+				this.vbox2.height=num	
+				
+			}
+			
+		]]> 
+	</fx:Script>
+	
+	
+	
+		
+	<mx:VDividedBox id="vbox" x="30" y="100" width="685" height="660">
+		<s:Group id="group" width="100%" height="332">
+			<mx:DataGrid id="dg" x="0" y="0" width="346" height="100%" editable="true"
+						 itemClick="dg_itemClickHandler(event);" rowCount="5" selectedIndex="-1"
+						 sortableColumns="false" allowMultipleSelection="true" >
+				<mx:columns>
+					<mx:DataGridColumn id="a"  headerText="All SWC Name" dataField="name"/>
+				</mx:columns>
+			</mx:DataGrid>
+			<mx:DataGrid id="dg2" x="344" y="0" width="342" height="100%" editable="true" rowCount="5" selectedIndex="-1">
+				<mx:columns>
+					<mx:DataGridColumn  headerText="Instance Name"   />
+				</mx:columns>
+			</mx:DataGrid>
+			
+		</s:Group>
+		<mx:DataGrid id="dg4" width="100%" height="294" editable="true" rowCount="5"
+					 selectedIndex="-1">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Conflict SWC Name"  dataField="nameA" />
+				<mx:DataGridColumn headerText="Conflict SWC Name"  dataField="nameB" />
+				<mx:DataGridColumn headerText="Conflict Instance Name"  dataField="data" />
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VDividedBox>
+	<mx:VDividedBox id="vbox2" x="734" y="100" width="615" height="660">
+		
+		<mx:VBox height="332">
+			<component:openFile id="openFile" width="550" height="33"
+								fileName="openFile_fileNameHandler(event)"
+								fileName2="openFile_fileName2Handler(event)">
+			</component:openFile>
+			<mx:HBox width="100%" height="100%" horizontalGap="12">
+				<mx:DataGrid id="dg3" x="734" y="137" width="300" height="100%" editable="true" rowCount="5"
+							 selectedIndex="-1">
+					<mx:columns>
+						<mx:DataGridColumn  headerText="Instance Name"   />			
+					</mx:columns>
+				</mx:DataGrid>
+				<mx:DataGrid id="dg5" x="1046" y="136" width="300" height="100%" editable="true" rowCount="5"
+							 selectedIndex="-1">
+					<mx:columns>
+						<mx:DataGridColumn  headerText="Instance Name"   />			
+					</mx:columns>
+				</mx:DataGrid>
+			</mx:HBox>
+		</mx:VBox>
+		
+		
+		<mx:HBox x="734" y="442" horizontalGap="-1">
+			<mx:DataGrid id="dg6" x="0" y="0" width="214" height="100%" editable="true" rowCount="5"
+						 selectedIndex="-1">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Conflict Instance Name"   />				
+				</mx:columns>
+			</mx:DataGrid>
+			<mx:DataGrid id="dg7" x="947" y="442" width="200" height="100%" editable="true" rowCount="5"
+						 selectedIndex="-1">
+				<mx:columns>
+					<mx:DataGridColumn headerText="A Don't Have Instance Name"   />
+				</mx:columns>
+			</mx:DataGrid>
+			<mx:DataGrid id="dg8" width="200" height="100%" editable="true" rowCount="5"
+						 selectedIndex="-1">
+				<mx:columns>
+					<mx:DataGridColumn headerText="B Don't Have Instance Name"   />
+				</mx:columns>
+			</mx:DataGrid>
+		</mx:HBox>
+	</mx:VDividedBox>
+	
+	
+	
+	<s:Button id="comConfigBtn" x="30" y="50" width="105" height="43" label="Compare All"
+			  click="comConfigBtn_clickHandler(event)" enabled="true"/>
+	<s:Button id="addBtn" x="375" y="48" width="105" height="43" label="Add SWC Files"
+			  click="addBtn_clickHandler(event)" enabled="true"/>
+	<s:Button id="delBtn" x="495" y="48" width="105" height="43" label="Del SWC File"
+			  click="delBtn_clickHandler(event)" enabled="false"/>
+	<s:Button id="comBtn" x="736" y="48" width="105" height="43" label="Compare A&amp;All"
+			  click="button1_clickHandler(event)" enabled="false"/>
+	<s:Button id="comBtn2" x="1046" y="48" height="43" label="Compare A&amp;B"
+			  click="comBtn2_clickHandler(event)" enabled="false"/>
+	<s:Button id="opLogBtn" x="221" y="48" width="105" height="44" label="Output log"
+			  click="button2_clickHandler(event)" enabled="false"/>
+
+</s:WindowedApplication>
